@@ -1,23 +1,50 @@
 import pandas as pd
 import numpy as np
+import sqlite3 as sq
+import matplotlib as plt
+import matplotlib.pyplot as plt
+import seaborn as sns
+import kagglehub as kh
 
-ministries_budget=pd.read_excel(r"C:\Users\suraj\Documents\suraj doc\Ministry_Wise_Budget_2024-25.xlsx")
-ministries_expense= pd.read_excel(r"C:\Users\suraj\Documents\suraj doc\Ministry_Wise_Actual_Expenditure.xlsx")
+path = kh.dataset_download("patrickb1912/ipl-complete-dataset-20082020")
+deliveries=pd.read_csv(r"C:\Users\suraj\.cache\kagglehub\datasets\patrickb1912\ipl-complete-dataset-20082020\versions\3\deliveries.csv")
+matches = pd.read_csv(r"C:\Users\suraj\.cache\kagglehub\datasets\patrickb1912\ipl-complete-dataset-20082020\versions\3\matches.csv")
+deliveries.columns=deliveries.columns.str.strip()
+matches.columns=matches.columns.str.strip()
+
+deliveries["match_id"]=deliveries["match_id"].astype("Int64")
+deliveries["inning"]=deliveries["inning"].astype("Int32")
+
+new_team_names={
+    "Royal Challengers Bangalore" : "Royal Challengers Bengaluru",
+    "Kings XI Punjab" : "Punjab Kings",
+    "Delhi Daredevils" : "Delhi Capitals"
+}
+deliveries["batting_team"]=deliveries["batting_team"].replace(new_team_names)
+deliveries["bowling_team"] = deliveries["bowling_team"].replace(new_team_names)
+
+deliveries["over"]=deliveries["over"].astype("Int32")
+deliveries["over"]=deliveries["over"]+1
 
 
-ministries_budget.drop("FY_2022-23_Actuals", axis=1, inplace=True)
-ministries_budget.drop("FY_2023-24_Revised",axis =1 , inplace = True)
-ministries_expense.rename(columns={"FY_2024-25_Budget_Estimate":"Net allocation"},inplace= True)
-print(ministries_expense)
+
+deliveries["ball"].astype("Int32")
+deliveries["is_legal_ball"] = ~deliveries["extras_type"].isin(["wides","no_balls"])
+deliveries["is_batter_ball"] = deliveries["extras_type"] != "wides"
 
 
-cag_reports = pd.read_excel(r"C:\Users\suraj\Documents\suraj doc\CAG_Report_Audit_Underutilization_Trimmed.xlsx")
-cag_reports.rename(columns={"Grant Number & Ministry/Department":"Departments"},inplace=True)
-cag_reports["Departments"] = (
-    cag_reports["Departments"]
-    .astype(str)
-    .str.replace("Grant No.", "", regex=True)
-    .str.replace(r"\d+", "", regex=True)
-    .str.replace(" - ", "", regex=True)
-    .str.strip()
-)
+print(deliveries.columns.to_list())
+player_name = {
+    "AB De Villiers": "AB de Villiers",
+    "G Gambhir": "Gautam Gambhir",
+    "V Sehwag": "Virender Sehwag",
+    "RG Sharma": "Rohit Sharma",
+    "MS Dhoni": "MS Dhoni",  
+    "KH Pandya": "Krunal Pandya",
+    "HH Pandya": "Hardik Pandya"
+}
+deliveries["batter"] = deliveries["batter"].replace(player_name).str.strip()
+deliveries["non_striker"] = deliveries["non_striker"].replace(player_name).str.strip()
+for col in ["batter","bowler","non_striker"]:
+    deliveries[col]=deliveries[col].astype(str).str.strip()
+
