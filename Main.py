@@ -28,7 +28,7 @@ deliveries["bowling_team"] = deliveries["bowling_team"].replace(new_team_names)
 deliveries["over"]=deliveries["over"].astype("Int32")
 deliveries["over"]=deliveries["over"]+1
 
-# This line had no effect, assigning it back to the column
+
 deliveries["ball"] = deliveries["ball"].astype("Int32")
 deliveries["is_legal_ball"] = ~deliveries["extras_type"].isin(["wides","no_balls"])
 deliveries["is_batter_ball"] = deliveries["extras_type"] != "wides"
@@ -47,7 +47,6 @@ player_name = {
     "YK Pathan": "Yusuf Pathan",
     "IK Pathan": "Irfan Pathan",
     "DJ Bravo": "Dwayne Bravo",
-    "Harbhajan Singh": "Harbhajan Singh",
     "PP Chawla": "Piyush Chawla",
     "A Mishra": "Amit Mishra",
     "R Ashwin": "Ravichandran Ashwin",
@@ -57,14 +56,17 @@ player_name = {
     "UT Yadav": "Umesh Yadav"
 }
 
-# Consolidate player name cleaning
-for col in ["batter","bowler","non_striker"]:
+
+for col in ["batter", "bowler", "non_striker", "player_dismissed"]:
     deliveries[col] = deliveries[col].replace(player_name).str.strip()
 
-# This calculation seems incorrect. Bowler runs should be total runs minus byes and leg byes.
+
+deliveries["total_runs"] = deliveries["batsman_runs"] + deliveries["extra_runs"]
+
+
 deliveries["bowler_runs"] = np.where(
-    deliveries["extras_type"].isin(["leg byes","byes"]),
-    deliveries["batsman_runs"],
+    deliveries["extras_type"].isin(["byes", "leg byes"]),
+    0,
     deliveries["total_runs"]
 )
 bowlers_wicket_types=["bowled","caught","stumped","lbw","caught and bowled"]
@@ -76,23 +78,19 @@ deliveries["clean_batsman_runs"] = np.where(
     deliveries["batsman_runs"]
 )
 
-# Correctly calculate extra runs conceded by the bowler (wides and no-balls)
+
 deliveries["bowlers_extra_runs"] = np.where(
     deliveries["extras_type"].isin(["wides","no_balls"]),
     deliveries["extra_runs"],
     0
 )
 
-# This seems to be for extras not attributed to the bowler.
+
 deliveries["fielders_extras_runs"] = np.where(
-    deliveries["extras_type"].isin(["legbyes","byes"]),
+    deliveries["extras_type"].isin(["leg byes", "byes"]), 
     deliveries["extra_runs"],
     0
 )
-
-deliveries["total_runs"] = deliveries["batsman_runs"]+deliveries["extra_runs"]
-
-# .lower needs to be called as a function with ()
 deliveries["extras_types"] = deliveries["extras_type"].fillna("none").str.strip().str.lower()
 
 deliveries["clean_fielder"] = np.where(
@@ -100,6 +98,9 @@ deliveries["clean_fielder"] = np.where(
     deliveries["bowler"],
     deliveries["fielder"]
 )
+ 
 
-deliveries["player_dismissed"] = deliveries["player_dismissed"].replace(player_name)
-print(deliveries.columns.to_list())
+output_excel_path = "deliveries_cleaned.xlsx"
+deliveries.to_excel(output_excel_path, index=False)
+ 
+print(f"DataFrame successfully exported to {output_excel_path}")
