@@ -48,3 +48,4 @@ deliveries["non_striker"] = deliveries["non_striker"].replace(player_name).str.s
 for col in ["batter","bowler","non_striker"]:
     deliveries[col]=deliveries[col].astype(str).str.strip()
 
+print(deliveries.columns.to_list())
