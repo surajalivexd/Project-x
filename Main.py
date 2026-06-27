@@ -20,7 +20,8 @@ deliveries["inning"]=deliveries["inning"].astype("Int32")
 new_team_names={
     "Royal Challengers Bangalore" : "Royal Challengers Bengaluru",
     "Kings XI Punjab" : "Punjab Kings",
-    "Delhi Daredevils" : "Delhi Capitals"
+    "Delhi Daredevils" : "Delhi Capitals",
+    "Rising Pune Supergiants": "Rising Pune Supergiant",
 }
 deliveries["batting_team"]=deliveries["batting_team"].replace(new_team_names)
 deliveries["bowling_team"] = deliveries["bowling_team"].replace(new_team_names)
@@ -98,9 +99,39 @@ deliveries["clean_fielder"] = np.where(
     deliveries["bowler"],
     deliveries["fielder"]
 )
- 
 
-output_excel_path = "deliveries_cleaned.xlsx"
-deliveries.to_excel(output_excel_path, index=False)
- 
-print(f"DataFrame successfully exported to {output_excel_path}")
+#ANALYZING 
+
+matches.rename(columns={"id": "match_id"}, inplace=True)
+matches["date"] = pd.to_datetime(matches["date"])
+matches["season"] = matches["date"].dt.year
+matches["player_of_match"] = matches["player_of_match"].replace(player_name).str.strip()
+city_name = {
+    "Bangalore": "Bengaluru",
+    "Delhi": "New Delhi",
+    "Visakhapatnam":"Vizag"
+}
+venue={
+    "Feroz Shah Kotla" : "Arun Jaitley Stadium",
+    "Sardar Patel Stadium, Motera" : "Narendra Modi Stadium",
+    "Punjab Cricket Association Stadium, Mohali" : "Punjab Cricket Association Stadium",
+    "Subrata Roy Sahara Stadium" : "Maharashtra Cricket Association Stadium (Pune)"
+}
+matches['city'] = matches["city"].replace(city_name).str.strip()
+matches.loc[matches["venue"]=="Sharjah Cricket Stadium","city"] = "Dubai"
+matches.loc[matches["venue"]=="Dubai International Cricket Stadium","city"] = "Dubai"
+matches["venue"] = matches["venue"].replace(venue).str.strip()
+matches["team1"] = matches["team1"].replace(new_team_names).str.strip()
+matches["team2"] = matches["team2"].replace(new_team_names).str.strip()
+matches["toss_winner"] = matches["toss_winner"].replace(new_team_names).str.strip()
+matches["winner"]=matches["winner"].replace(new_team_names).str.strip()
+matches["city"].fillna("Not Available", inplace=True)
+matches["winner"].fillna("No Result",inplace=True)
+matches["player_of_match"].fillna("Not Available",inplace=True)
+matches.loc[matches["result"] == "tie","result_margin"] = 0
+matches["result_margin"].fillna(0,inplace=True)
+matches["target_runs"] .fillna(0,inplace=True)
+matches["target_overs"].fillna(0,inplace=True)
+
+
+print(matches.isna().sum())
