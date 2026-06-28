@@ -99,9 +99,7 @@ deliveries["clean_fielder"] = np.where(
     deliveries["bowler"],
     deliveries["fielder"]
 )
-
-#ANALYZING 
-
+# cleaning matches 
 matches.rename(columns={"id": "match_id"}, inplace=True)
 matches["date"] = pd.to_datetime(matches["date"])
 matches["season"] = matches["date"].dt.year
@@ -133,5 +131,130 @@ matches["result_margin"].fillna(0,inplace=True)
 matches["target_runs"] .fillna(0,inplace=True)
 matches["target_overs"].fillna(0,inplace=True)
 
+#Analyzing 
 
-print(matches.isna().sum())
+conn = sq.connect("ipl.db")
+deliveries.to_sql("deliveries", conn, if_exists="replace", index=False)
+matches.to_sql("matches", conn, if_exists="replace", index=False)
+# TOP 10 RUN SCORERS OF ALL TIME (with Strike Rate)
+query1 = """
+SELECT
+    batter,
+    SUM(clean_batsman_runs) AS runs_scored,
+    (SUM(clean_batsman_runs) * 100.0 / SUM(is_batter_ball)) AS strike_rate
+FROM deliveries
+GROUP BY batter
+ORDER BY runs_scored DESC
+LIMIT 10;
+"""
+top_10_scorers =  pd.read_sql_query(query1, conn)
+print("--- Top 10 Run Scorers (with Strike Rate) ---")
+print(top_10_scorers)
+
+
+# BEST BOWLER BY ECONOMY (MIN 50 OVERS)
+query2 = """
+SELECT
+    bowler,
+    SUM(bowler_runs) AS runs_conceded,
+    SUM(is_legal_ball) AS balls_bowled,
+    (SUM(bowler_runs) * 6.0 / SUM(is_legal_ball)) AS economy
+FROM deliveries
+GROUP BY bowler
+HAVING balls_bowled >= 300 
+ORDER BY economy ASC
+LIMIT 10;
+"""
+top_10_economical_bowlers = pd.read_sql_query(query2, conn)
+print("\n--- Top 10 Most Economical Bowlers (min. 50 overs) ---")
+print(top_10_economical_bowlers)
+
+# TOP 10 WICKET TAKERS OF ALL TIME
+query3 =  """
+SELECT
+    bowler,
+    SUM(is_bowler_wicket) AS wickets,
+    (SUM(bowler_runs) * 6.0 / SUM(is_legal_ball)) AS economy
+FROM deliveries
+GROUP BY bowler
+ORDER BY wickets DESC
+limit 10;
+"""
+top_10_wicket_takers = pd.read_sql_query(query3, conn)
+print("\n--- Top 10 Wicket Takers (with Economy) ---")
+print(top_10_wicket_takers)
+
+# HIGH SCORING VENUES
+query4 ="""
+select venue , avg(target_runs) as  avg_innings_score
+from matches 
+group by venue
+order by avg_innings_score desc
+limit 10;"""
+high_scoring_venues = pd.read_sql_query(query4, conn)
+print("\n--- High Scoring Venues ---")
+print(high_scoring_venues)
+
+# TOP DEATH OVER BATSMAN
+query5 ="""
+SELECT
+    batter,
+    SUM(clean_batsman_runs) AS runs,
+    (SUM(clean_batsman_runs) * 100.0 / SUM(is_batter_ball)) AS strike_rate,
+    SUM(is_batter_ball) as balls_faced
+FROM deliveries
+WHERE over >= 15 AND over <= 20 
+GROUP BY batter
+HAVING balls_faced >= 100 
+ORDER BY strike_rate DESC
+LIMIT 10;
+"""
+top_death_over_batsman = pd.read_sql_query(query5, conn)
+print("\n--- Top 10 Death Over Batsmen (min. 100 balls) ---")
+print(top_death_over_batsman)
+
+# MOST VALUABLE PLAYER
+query6="""
+SELECT
+    player_of_match,
+    COUNT(*) AS awards_count
+FROM matches
+WHERE player_of_match != 'Not Available'
+GROUP BY player_of_match
+ORDER BY awards_count DESC
+LIMIT 10;
+"""
+most_valuable_player = pd.read_sql_query(query6, conn)
+print("\n--- Top 10 'Player of the Match' Award Winners ---")
+print(most_valuable_player)
+
+# BEST TEAM OF ALL TIME (BY WINS%)
+query7="""
+WITH
+    games_played AS (
+        SELECT team, COUNT(*) AS total_games
+        FROM (
+            SELECT team1 AS team FROM matches WHERE result != 'no result'
+            UNION ALL
+            SELECT team2 AS team FROM matches WHERE result != 'no result'
+        )
+        GROUP BY team
+    ),
+    games_won AS (
+        SELECT winner, COUNT(*) AS total_wins
+        FROM matches
+        WHERE winner != 'No Result'
+        GROUP BY winner
+    )
+SELECT
+    gp.team,
+    (gw.total_wins * 100.0 / gp.total_games) AS win_percentage
+FROM games_played AS gp
+JOIN games_won AS gw ON gp.team = gw.winner
+ORDER BY win_percentage DESC
+LIMIT 10;
+"""
+best_team_of_all_time = pd.read_sql_query(query7, conn) 
+print("\n--- Best Team of All Time (by Wins%) ---")
+print(best_team_of_all_time)
+conn.close()
